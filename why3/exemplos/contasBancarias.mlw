@@ -1,0 +1,170 @@
+module Accounts_MapImp
+
+  use int.Int
+  type accNumber = int 
+  type amount    = int
+
+  clone fmap.MapImp with type key = accNumber
+
+ 
+  (* Variável de estado: mapeia número de contas aos saldos *) 
+  val accounts : t amount 
+
+
+
+  let open (n :accNumber) : ()
+    requires { not mem n accounts }
+    requires { forall a :accNumber. mem a accounts -> find a accounts >= 0 }    (* INV *)
+    ensures  { forall a :accNumber. mem a accounts <-> mem a (old accounts) \/ a = n } 
+    ensures  { find n accounts = 0 }
+    ensures  { forall a :accNumber. mem a accounts /\ a <> n -> find a accounts = find a (old accounts) }    
+    ensures  { forall a :accNumber. mem a accounts -> find a accounts >= 0 }    (* INV *)
+    writes   { accounts }
+  = add n 0 accounts
+
+    
+
+  let deposit (n :accNumber) (x :amount) : () 
+    requires { mem n accounts /\ x > 0 }
+    requires { forall a :accNumber. mem a accounts -> find a accounts >= 0 }    (* INV *)
+    ensures  { forall a :accNumber. mem a accounts <-> mem a (old accounts) } 
+    ensures  { find n accounts = find n (old accounts) + x }
+    ensures  { forall a :accNumber. mem a accounts  /\ a <> n -> find a accounts = find a (old accounts) }
+    ensures  { forall a :accNumber. mem a accounts -> find a accounts >= 0 }    (* INV *)
+    writes   { accounts }
+  = let bal = find n accounts in 
+    add n (bal+x) accounts 
+ 
+
+
+
+  let withdraw (n :accNumber) (x :amount) : () 
+    requires { mem n accounts /\ 0 < x <= find n accounts }
+    requires { forall a :accNumber. mem a accounts -> find a accounts >= 0 }    (* INV *)
+    ensures  { forall a :accNumber. mem a accounts <-> mem a (old accounts) } 
+    ensures  { find n accounts = find n (old accounts) - x }
+    ensures  { forall a :accNumber. mem a accounts  /\ a <> n -> find a accounts = find a (old accounts) }
+    ensures  { forall a :accNumber. mem a accounts -> find a accounts >= 0 }    (* INV *)
+    writes   { accounts }
+  = let bal = find n accounts in 
+    add n (bal-x) accounts 
+ 
+
+
+
+  let transfer (from :accNumber) (to_ :accNumber) (x :amount) : () 
+    requires { mem from accounts /\ mem to_ accounts }
+    requires { from <> to_ }
+    requires { 0 < x <= find from accounts }
+    requires { forall a :accNumber. mem a accounts -> find a accounts >= 0 }    (* INV *)
+    ensures  { forall a :accNumber. mem a accounts <-> mem a (old accounts) } 
+    ensures  { find from accounts = find from (old accounts) - x }
+    ensures  { find to_  accounts = find to_  (old accounts) + x }
+    ensures  { forall a :accNumber. mem a accounts /\ a <> from /\ a <> to_ -> find a accounts = find a (old accounts) }
+    ensures  { forall a :accNumber. mem a accounts -> find a accounts >= 0 }    (* INV *)
+    writes   { accounts }
+  = let balfrom = find from accounts in 
+    let balto   = find to_  accounts in 
+    add to_  (balto  +x) accounts ;
+    add from (balfrom-x) accounts 
+
+
+
+  let main ()
+    requires { accounts = empty }
+    ensures  { find 3333 accounts = 200 }
+  = open 1111 ;
+    open 2222 ;
+    open 3333 ;
+    deposit 1111 100 ; 
+    deposit 2222 100 ; 
+    transfer 1111 3333 100 ;
+    transfer 2222 3333 100 
+
+
+end
+
+
+
+
+
+
+module Accounts_MapApp_Record
+
+  use int.Int
+  type accNumber = int 
+  type amount    = int
+  clone fmap.MapApp with type key = accNumber
+
+  type state = { mutable bal: t amount }
+    invariant  { forall a :accNumber. mem a bal -> find a bal >= 0 }
+    by { bal = create() }
+
+  val accounts :state
+
+
+
+  let open (n :accNumber) : ()
+    requires { not mem n accounts.bal }
+    ensures  { forall a :accNumber. mem a accounts.bal <-> mem a (old accounts.bal) \/ a = n } 
+    ensures  { find n accounts.bal = 0 }
+    ensures  { forall a :accNumber. mem a accounts.bal /\ a <> n -> find a accounts.bal = find a (old accounts.bal) }    
+    writes   { accounts.bal }
+  = accounts.bal <- add n 0 accounts.bal 
+
+    
+
+  let deposit (n :accNumber) (x :amount) : () 
+    requires { mem n accounts.bal /\ x > 0 }
+    ensures  { forall a :accNumber. mem a accounts.bal <-> mem a (old accounts.bal) } 
+    ensures  { find n accounts.bal = find n (old accounts.bal) + x }
+    ensures  { forall a :accNumber. mem a accounts.bal  /\ a <> n -> find a accounts.bal = find a (old accounts.bal) }
+    writes   { accounts.bal }
+  = let baln = find n accounts.bal in
+    accounts.bal <- add n (baln+x) accounts.bal 
+ 
+
+
+  let withdraw (n :accNumber) (x :amount) : () 
+    requires { mem n accounts.bal /\ 0 < x <= find n accounts.bal }
+    ensures  { forall a :accNumber. mem a accounts.bal <-> mem a (old accounts.bal) } 
+    ensures  { find n accounts.bal = find n (old accounts.bal) - x }
+    ensures  { forall a :accNumber. mem a accounts.bal  /\ a <> n -> find a accounts.bal = find a (old accounts.bal) }
+    writes   { accounts.bal }
+  = let baln = find n accounts.bal in 
+    accounts.bal <- add n (baln-x) accounts.bal
+
+
+
+  let transfer (from :accNumber) (to_ :accNumber) (x :amount) : () 
+    requires { mem from accounts.bal /\ mem to_ accounts.bal }
+    requires { from <> to_ }
+    requires { 0 < x <= find from accounts.bal }
+    ensures  { forall a :accNumber. mem a accounts.bal <-> mem a (old accounts.bal) } 
+    ensures  { find from accounts.bal = find from (old accounts.bal) - x }
+    ensures  { find to_  accounts.bal = find to_  (old accounts.bal) + x }
+    ensures  { forall a :accNumber. mem a accounts.bal  /\ a <> from /\ a <> to_ -> find a accounts.bal = find a (old accounts.bal) }
+    writes   { accounts.bal }
+  = let balfrom = find from accounts.bal in 
+    let balto   = find to_  accounts.bal in 
+    accounts.bal <- add to_  (balto  +x) accounts.bal ;
+    accounts.bal <- add from (balfrom-x) accounts.bal 
+ 
+
+
+  let main ()
+    ensures { find 3333 accounts.bal = 200 }
+  = accounts.bal <- create()  ;
+    open 1111 ;
+    open 2222 ;
+    open 3333 ;
+    deposit 1111 100 ; 
+    deposit 2222 100 ; 
+    transfer 1111 3333 100 ;
+    transfer 2222 3333 100 
+    
+    
+end
+
+
+

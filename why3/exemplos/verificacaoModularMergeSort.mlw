@@ -1,0 +1,82 @@
+module MergeSort
+
+  use int.Int
+  use list.List
+  use list.Length
+  use list.Permut
+  use list.Append
+  use list.SortedInt
+
+
+  val function split (l :list int) : (list int, list int)
+    ensures { let (l1,l2) = result in length l < 2 \/ (length l >= 2 /\ length l1 < length l /\ length l2 < length l) } 
+    ensures { let (l1,l2) = result in permut l (l1 ++ l2) } 
+
+
+  val function merge (l1 l2 :list int) : list int
+    requires { sorted l1 /\ sorted l2  }
+    ensures { sorted result } 
+    ensures { permut (l1 ++ l2) result } 
+
+  
+  let rec function mergesort (l :list int)
+    ensures { sorted result } 
+    ensures { permut result l } 
+    variant { length l }
+  = match l with
+    | Nil -> Nil
+    | Cons x Nil -> Cons x Nil
+    | _ ->   let (l1,l2) = split l
+             in merge (mergesort l1) (mergesort l2)
+    end
+
+end
+
+
+
+
+module MergeSortRefnm
+
+  use int.Int
+  use list.List
+  use list.Length
+  use list.Permut
+  use list.Append
+  use list.SortedInt
+
+
+
+  let rec function split (l :list int) : (list int, list int)
+    ensures { let (l1,l2) = result in length l < 2 \/ (length l >= 2 /\ length l1 < length l /\ length l2 < length l) } 
+    ensures { let (l1,l2) = result in permut l (l1 ++ l2) } 
+  = match l with
+    | Nil -> (Nil, Nil)
+    | Cons x Nil -> (Cons x Nil, Nil)
+    | Cons x1 (Cons x2 l') -> let (l1, l2) = split l'
+                              in (Cons x1 l1, Cons x2 l2)
+    end
+
+
+
+  let rec function merge (l1 l2 :list int) : list int
+    requires { sorted l1 /\ sorted l2  }
+    ensures { sorted result } 
+    ensures { permut (l1 ++ l2) result } 
+    variant { length (l1 ++ l2) }
+  = match l1, l2 with
+    | Nil, _ -> l2
+    | _, Nil -> l1
+    | (Cons a1 l1'), (Cons a2 l2') -> if (a1 <= a2)                         (*  pode requerer análise do caso: (a1 < a2 || a1 = a2)  *)
+                                      then (Cons a1 (merge l1' l2))
+                                      else (Cons a2 (merge l1 l2'))
+    end
+
+
+  
+  clone MergeSort with val split, val merge 
+
+  goal thisReallyWorks : forall l :list int. let ls = mergesort l in sorted ls /\ permut ls l
+
+  
+
+end

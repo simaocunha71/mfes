@@ -1,0 +1,44 @@
+module InsertionSortProgram
+
+  use  int.Int
+  use  list.List
+  use  list.Permut
+  use  list.SortedInt 
+  use  list.Length
+
+
+  let rec function insert (i: int) (l: list int) : list int
+    requires { sorted l } 
+    ensures  { sorted result } 
+    ensures  { permut result (Cons i l) } 
+    =
+    match l with
+    | Nil -> Cons i Nil
+    | Cons h t -> if i <= h then Cons i l 
+                            else Cons h (insert i t)
+  end
+
+
+  let rec function iSort (l: list int) : list int
+    ensures { sorted result } 
+    ensures { permut result l } 
+    =
+    match l with 
+    | Nil -> Nil
+    | Cons h t -> insert h (iSort t ) 
+  end
+
+
+  predicate is_a_sorting_algorithm (f: list int -> list int) = 
+    forall al :list int. permut al (f al) /\ sorted (f al)
+
+  goal insertion_sort_correct: is_a_sorting_algorithm iSort
+
+
+  let main () =
+      let l = Cons 2 (Cons 3 (Cons 1 Nil)) in 
+      iSort l
+
+
+end
+
