@@ -1,92 +1,98 @@
-(*https://why3.lri.fr/try/?name=test.mlw&lang=whyml*)
 (*
+********************************************************************************
+Métodos Formais em Engenharia de Software | Exercício de avaliação Why3
+Aluno: Simão Pedro Sá Cunha
+Número: A93262
+Curso: MIEI
+********************************************************************************
+ENUNCIADO:
 
-This exercise is based on a model of an emailing system. The system
-is modeled through two state variables, "sent" (a set of messages) and
-"inbox" (a dictionary mapping users to sets of messages - individual
-inboxes). The overall goal is to complete the *specifications* of the
-two functions "send" and "receive", so that the type invariant
-provided is respected, and also the execution functions scenario1 and
-scenario2 can be fully verified. Scenario3 should not be fully
-verified, as it contains an error - it plays the role of a sanity
-check.
+Este exercício é baseado no modelo de um sistema de email. 
 
-You should write adequate preconditions and postconditions for "send"
-and "receive". If required, feel free to strengthen the type
-invariant, including additional information. All the verification
-conditions generated should be provable in the TryWhy3 platform, with
-the exception of some VCs generated for Scenario3. 
+O sistema é modelado por duas variáveis de estado: 
+- "sent" (um conjunto de mensagens)
+- "inbox" (um dicionário mapeando utilizadores a conjuntos de mensagens - caixas individuais)
 
+O objetivo principal é completar as especificações das duas funções "send" e "receive", de forma a que:
+- o tipo invariante dado é respeitado
+- as execuções de scenario1 e scenario2 sejam totalmente verificadas.
+- o scenario3 não deve ser totalmente verificado, uma vez que contém um erro - tem o papel de controlo de sanidade
+
+Deves escrever pré-condições e pós-condições adequadas para o "send" e "receive".
+
+Se pedido, sê livre de fortificar o invariante de tipo, incluindo informação adicional.
+
+Todas as condições de verificação geradas devem ser provadas na plataforma TryWhy3, 
+com a exceção de algumas condições de verificação geradas para o Scenario3
+********************************************************************************
 *)
 
-
-
 module Email
-
   use int.Int
-
   type user 
   type content
-  type message = { 
-      from : user;
-      tto : user; 
-      content : content 
-  }
+  type message = { from : user;
+       	       	   tto : user; 
+                   content : content }
 
   clone set.SetApp with type elt = message
-
   clone fmap.MapApp with type key = user 
 
-
-  type statetype = { 
-      mutable sent : set ; 
-      mutable inbox : t set 
-  }
-    invariant { 
-        (forall u :user, m :message. mem u inbox /\ SetApp.mem m (inbox u) -> m.tto = u) /\ true 
-    }
-    by { 
-        sent = empty() ; 
-        inbox = create() 
-    }
-
+  type statetype = { mutable sent : set ; mutable inbox : t set }
+    invariant { (forall u :user, m :message. 
+            mem u inbox /\ SetApp.mem m (inbox u) -> m.tto = u) 
+            /\ 
+            true }
+    by { sent = empty() ; inbox = create() }
 
   val state : statetype
 
-
-
-
-
+  (*********************Função de envio de um e-mail************************)
   let send (f t :user) (c :content) : () 
-    requires { 
-        true 
-    } 
-    ensures  { 
-        true 
-    }
-    writes   { 
-        state.sent 
-    }
-  = let m = { 
-      from=f ; 
-      tto=t ; 
-      content=c 
-      } in 
+    (****************************Pré-condições******************************)
+    (*A mensagem enviada não pode estar com o estado "sent" antes do envio de um e-mail*)
+    requires {let m = { from=f ; tto=t ; content=c } in not SetApp.mem m state.sent}
+    
+    (****************************Pós-condições******************************)
+    (*A mensagem enviada tem de estar como o estado "sent" depois do envio de um e-mail*)
+    ensures  { let m = { from=f ; tto=t ; content=c } in SetApp.mem m state.sent}
+    (*Todas as mensagens com tinham o estado "sent* permanecem com esse estado depois de uma transição de estados*)
+    ensures  { forall m':message. SetApp.mem m' (old state.sent) -> SetApp.mem m' state.sent}
+    (*O número de mensagens com o estado "sent" vai ser incrementado depois da execução desta função*)
+    ensures  { (cardinal (state.sent) = cardinal (old state.sent) + 1) }
+    
+    writes   { state.sent }
+  = let m = { from=f ; tto=t ; content=c } in 
     state.sent <- SetApp.add m state.sent
 
-
-
-
+  (*********************Função de receção de um e-mail**********************)
   let receive (t :user) (m :message) : ()
-    requires { 
-        SetApp.mem m state.sent 
-        }
-    ensures  { 
-        true 
-    }
-    writes   { 
-        state.sent, state.inbox 
-    }
+    (****************************Pré-condições******************************)
+    (*Utilizador tem que ter o estado "inbox", visto que recebeu o e-mail*)
+    requires { mem t state.inbox }
+    (*A mensagem enviada tem que ser dirigida ao utilizador "t"*)
+    requires { m.tto = t }
+    (*A mensagem tem que ter o estado "sent", visto que foi esse objeto que foi enviado*)
+    requires { SetApp.mem m state.sent }
+
+    (****************************Pós-condições******************************)
+    (*O número de mensagens com o estado "sent" vai ser decrementado depois da execução desta função*)
+    ensures  {cardinal state.sent = cardinal (old state.sent) -1}
+    (*A mensagem tem de constar na caixa de entrada do recetor t (estado "inbox")*)
+    ensures  {SetApp.mem m (state.inbox t)}
+    (*A mensagem recebida não pode estar no estado "sent", pois nesta função a mensagem não foi enviada, mas sim recebida*)
+    ensures  {not SetApp.mem m state.sent}
+    (*Todas os utilizadores que têm o estado "inbox* permanecem com esse estado depois de uma transição de estados*)
+    ensures  {forall u:user. mem u (old state.inbox) -> mem u state.inbox}
+    (*Todas as mensagens que têm estado "sent" (exceto a mensagem enviado - mensagem como input), continuam a pertencer depois de uma transição de estados*)
+    ensures  {forall m':message. SetApp.mem m' (old state.sent) -> SetApp.mem m' state.sent \/ m' = m}
+    (*Todas as mensagens que têm estado "inbox" permanecem com o mesmo estado, incluindo a nova mensagem enviada*)
+    ensures  {forall m':message. SetApp.mem m' (state.inbox t) -> SetApp.mem m' (old state.inbox t) \/ (m' = m)}
+  
+ 
+
+    
+    writes   { state.sent, state.inbox }
   = let umsgs = SetApp.add m (find t state.inbox) in
     state.inbox <- add t umsgs state.inbox;
     state.sent <- SetApp.remove m state.sent
@@ -101,80 +107,28 @@ module Email
 
 
   let scenario1 ()
-    requires { 
-        let m = { 
-            from=u ; 
-            tto=u ; 
-            content=c 
-            } 
-        in not SetApp.mem m state.sent 
-    }
-    requires { 
-        mem u state.inbox 
-    }
-    ensures  { 
-        cardinal (state.sent) = cardinal (old state.sent) 
-    }
-  = send u u c ; 
-    receive u { 
-        from=u ; 
-        tto=u ; 
-        content=c 
-    } 
+    requires { let m = { from=u ; tto=u ; content=c } 
+               in not SetApp.mem m state.sent }
+    requires { mem u state.inbox }
+    ensures  { cardinal (state.sent) = cardinal (old state.sent) }
+  = send u u c ; receive u { from=u ; tto=u ; content=c } 
 
 
   let scenario2 ()
-    requires { 
-        SetApp.is_empty(state.sent) 
-    }
-    requires { 
-        mem u state.inbox 
-    }
-    requires { 
-        mem t state.inbox 
-    }
-    requires { 
-        u<>t 
-    }        
-    ensures  { 
-        SetApp.is_empty(state.sent) 
-    }
-  = send f u c ; 
-    send f t c ;
-    receive u { 
-        from=f ; 
-        tto=u ; 
-        content=c 
-    } ; 
-    receive t { 
-        from=f ; 
-        tto=t ; 
-        content=c 
-    } 
+    requires { SetApp.is_empty(state.sent) }
+    requires { mem u state.inbox }
+    requires { mem t state.inbox }
+    requires { u<>t }        
+    ensures  { SetApp.is_empty(state.sent) }
+  = send f u c ; send f t c ; receive u { from=f ; tto=u ; content=c } ; receive t { from=f ; tto=t ; content=c } 
 
 
   (* FAIL - checks inconsistencies *)
   let scenario3 ()  
-    requires { 
-        let m = { 
-            from=u ; 
-            tto=u ; 
-            content=c 
-        } 
-        in not SetApp.mem m state.sent 
-    }
-    requires { 
-        mem u state.inbox 
-    }
-    ensures  { 
-        cardinal (state.sent) = cardinal (old state.sent) 
-    }
-  = send u u c ; 
-    receive u { 
-        from=f ; 
-        tto=u ; 
-        content=c 
-    } 
+    requires { let m = { from=u ; tto=u ; content=c } in not SetApp.mem m state.sent }
+    requires { mem u state.inbox }
+    ensures  { cardinal (state.sent) = cardinal (old state.sent) }
+  = send u u c ; receive u { from=f ; tto=u ; content=c } 
 
 
 
