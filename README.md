@@ -1,7 +1,7 @@
 ### Exercícios práticos da UC de Métodos Formais em Engenharia de Software - Ano letivo 2022/2023
 
 #### SAT Solver
-* Enunciado: [Aqui](https://github.com/simaocunha71/kmeans-cp/blob/main/fase1/)
+* Enunciado: [Aqui](https://github.com/simaocunha71/mfes/blob/main/sat%20solvers/mt1/trab-SAT.pdf)
 * Resolução em PDF: [Aqui](https://github.com/simaocunha71/mfes/blob/main/sat%20solvers/mt1/a93262_mt1.pdf) 
 * Resolução no Google Colab [Aqui](https://colab.research.google.com/drive/1KT7G0hNzy67tsN7VVSYrwemU3XhhO_9Y?usp=sharing)
 #### Alloy estrutural
